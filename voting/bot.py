@@ -11,6 +11,8 @@ from .model import RankedVote
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix='-', intents=intents)
 
+open_votes = {}
+
 
 async def get_create_vote_response(ctx, name):
     message = await ctx.send(f'Tell me about the next choice for {name}, or react to this message to finish.')
@@ -37,18 +39,23 @@ async def create_vote(ctx, *args):
         return
 
     name = ' '.join(args)
+
+    if (ctx.guild, name) in open_votes:
+        await ctx.send(f'There is already an open vote named {name}')
+        return
+
     choices = []
     while True:
         response = await get_create_vote_response(ctx, name)
         if isinstance(response, discord.Message):
             choices.append(response.content)
+            await response.add_reaction('👍')
         elif str(response[0].emoji) == '✅':
             await ctx.send('\n'.join([
-                f'Vote confirmed: {name}',
-                'Your options are:',
+                f'Vote created: {name}',
                 *(f'{i+1}. {choice}' for i, choice in enumerate(choices))
             ]))
-            vote = RankedVote(name, choices)
+            open_votes[(ctx.guild, name)] = RankedVote(name, choices)
             return
         elif str(response[0].emoji) == '❎':
             await ctx.send(f'Vote cancelled: {name}')
