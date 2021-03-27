@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 
 import discord
 import discord.utils
@@ -15,10 +14,35 @@ bot = commands.Bot(command_prefix='-', intents=intents)
 open_votes = {}
 
 
+class Emoji:
+
+    CONFIRM = '✅'
+    CANCEL = '❎'
+    ONE = '1️⃣'
+    TWO = '2️⃣'
+    THREE = '3️⃣'
+    FOUR = '4️⃣'
+    FIVE = '5️⃣'
+    SIX = '6️⃣'
+    SEVEN = '7️⃣'
+    EIGHT = '8️⃣'
+    NINE = '9️⃣'
+    TEN = '🔟'
+
+    @staticmethod
+    def statuses():
+        return [Emoji.CONFIRM, Emoji.CANCEL]
+
+    @staticmethod
+    def numbers():
+        return [Emoji.ONE, Emoji.TWO, Emoji.THREE, Emoji.FOUR, Emoji.FIVE,
+                Emoji.SIX, Emoji.SEVEN, Emoji.EIGHT, Emoji.NINE, Emoji.TEN]
+
+
 async def get_create_vote_response(ctx, name):
     message = await ctx.send(f'Tell me about the next choice for {name}, or react to this message to finish.')
-    await message.add_reaction('✅')
-    await message.add_reaction('❎')
+    await message.add_reaction(Emoji.CONFIRM)
+    await message.add_reaction(Emoji.CANCEL)
 
     while True:
         done, pending = await asyncio.wait([
@@ -29,7 +53,7 @@ async def get_create_vote_response(ctx, name):
 
         if isinstance(result, discord.Message) and result.author == ctx.author:
             return result
-        elif result[1] == ctx.author and result[0].message == message and str(result[0].emoji) in ['✅', '❎']:
+        elif result[1] == ctx.author and result[0].message == message and str(result[0].emoji) in Emoji.statuses():
             return result
 
 
@@ -50,8 +74,7 @@ async def create_vote(ctx, *args):
         response = await get_create_vote_response(ctx, name)
         if isinstance(response, discord.Message):
             choices.append(response.content)
-            await response.add_reaction('👍')
-        elif str(response[0].emoji) == '✅':
+        elif str(response[0].emoji) == Emoji.CONFIRM:
             await ctx.send('\n'.join([
                 f'Vote created: {name}',
                 *(f'{i+1}. {choice}' for i, choice in enumerate(choices))
@@ -59,7 +82,7 @@ async def create_vote(ctx, *args):
             open_votes[(ctx.guild, name)] = RankedVote(name, choices)
 
             return
-        elif str(response[0].emoji) == '❎':
+        elif str(response[0].emoji) == Emoji.CANCEL:
             await ctx.send(f'Vote cancelled: {name}')
             return
 
@@ -76,13 +99,13 @@ def str_choice_index(i):
 
 
 async def get_vote_response(member, vote, choice_index):
-    dm = await member.send(f'What is your **{str_choice_index(choice_index)}** choice? Enter an index or react ✅ to this message to submit your vote.')
-    await dm.add_reaction('✅')
+    dm = await member.send(f'What is your **{str_choice_index(choice_index)}** choice? Enter an index or react {Emoji.CONFIRM} to this message to submit your vote.')
+    await dm.add_reaction(Emoji.CONFIRM)
 
     while True:
         done, pending = await asyncio.wait([
             bot.wait_for('message', check=lambda message: message.channel == dm.channel),
-            bot.wait_for('reaction_add', check=lambda reaction, user: user == member and reaction.message == dm and str(reaction.emoji) == '✅')
+            bot.wait_for('reaction_add', check=lambda reaction, user: user == member and reaction.message == dm and str(reaction.emoji) == Emoji.CONFIRM)
         ], return_when=asyncio.FIRST_COMPLETED)
 
         result = next(iter(done)).result()
@@ -90,16 +113,37 @@ async def get_vote_response(member, vote, choice_index):
 
 
 async def get_choices(vote, member):
-    await member.send('\n'.join([
-        f'{vote.name} is now open for voting! Your choices are:',
-        *(f'{i + 1}. {choice}' for i, choice in enumerate(vote.choices)),
-        'When prompted, respond with the **index** (e.g. 1, 2, 3, etc.) of your choice.'
-    ]))
-    for choice_index in range(1, len(vote.choices) + 1):
-        response = await get_vote_response(member, vote, choice_index)
-        if isinstance(response, tuple):
+    await member.send(f'{vote.name} is now open for voting! Your choices are:')
+    messages = []
+    for i, choice in enumerate(vote.choices):
+        message = await member.send(f'{i + 1}. {choice}')
+        messages.append(message)
+    confirm_msg = await member.send('React to each message with your rank for that choice. You don\'t have to rank every choice.\nReact ✅ to this message to submit your vote.')
+    await confirm_msg.add_reaction(Emoji.CONFIRM)
+
+    await asyncio.gather(*(
+        message.add_reaction(Emoji.ONE)
+        for message in messages
+    ))
+
+    last_rank = 0
+    while True:
+        reaction, user = await bot.wait_for('reaction_add', check=lambda reaction, user: user == member and reaction.message in [*messages, confirm_msg])
+        emoji = str(reaction.emoji)
+        if reaction.message == confirm_msg and emoji == Emoji.CONFIRM:
             break
-    await member.send(f'Your vote has been recorded. Thank you for voting in {vote.name}!')
+        if emoji not in Emoji.numbers():
+            continue
+
+        rank = Emoji.numbers().index(emoji)
+        if rank == last_rank and rank < len(vote.choices) - 1:
+            last_rank += 1
+            await asyncio.gather(*(
+                message.add_reaction(Emoji.numbers()[last_rank])
+                for message in messages
+            ))
+
+    await member.send(f'Your vote has been recorded. Thank you for voting!')
 
 
 @bot.command('open-vote')
@@ -124,7 +168,7 @@ async def start_vote(ctx, *args):
         await ctx.send(f'{args[1]} is not a role.')
         return
 
-    # Send DM's
+    # Slide into members' DM's ;)
     await ctx.send(f'{vote.name} has opened for voting! Users which are eligible to vote will be messaged. Use -close-vote "{{name}}" to close the vote and view the results.')
 
     vote.has_started = True
