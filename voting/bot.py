@@ -11,52 +11,6 @@ from .model import RankedVote
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix='-', intents=intents)
 
-active_conversations = {}
-
-
-@bot.event
-async def on_ready():
-    print(f'We have logged in as {bot.user}')
-
-
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    if (message.channel, message.author) in active_conversations:
-        conversation = active_conversations[(message.channel, message.author)]
-        try:
-            await conversation.asend(message)
-        except StopAsyncIteration:
-            del active_conversations[(message.channel, message.author)]
-
-        return
-
-    await bot.process_commands(message)
-
-
-@bot.event
-async def on_reaction_add(reaction, user):
-    try:
-        conversation = active_conversations[(reaction.message.channel, user)]
-    except KeyError:
-        return
-
-
-async def create_vote_conversation(ctx, name):
-    while True:
-        await ctx.send(f'Tell me about the next choice for {name}, or react to this message to finish.')
-        message = yield
-        if message == 'confirm':
-            await ctx.send('Ok, your vote is set up!')
-            break
-        elif message == 'cancel':
-            await ctx.send('Your vote has been cancelled.')
-            break
-        else:
-            await ctx.send("Ok, I've added this choice to the vote.")
-
 
 async def get_create_vote_response(ctx, name):
     message = await ctx.send(f'Tell me about the next choice for {name}, or react to this message to finish.')
