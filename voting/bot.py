@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 
 import discord
 import discord.utils
@@ -93,6 +94,7 @@ async def create_vote(ctx, *args):
                 'Your options are:',
                 *(f'{i+1}. {choice}' for i, choice in enumerate(choices))
             ]))
+            vote = RankedVote(name, choices)
             return
         elif str(response[0].emoji) == '❎':
             await ctx.send(f'Vote cancelled: {name}')
