@@ -1,12 +1,9 @@
-import asyncio
-
-import discord
 import discord.utils
 from discord.ext import commands
 
+from voting.flows.close_vote import close_vote
 from voting.flows.create_vote import create_vote
 from voting.flows.start_vote import start_vote
-from voting.model import RankedVote
 
 
 intents = discord.Intents.default()
@@ -21,3 +18,4 @@ async def vote(ctx):
 
 vote.command('create')(create_vote)
 vote.command('open')(start_vote)
+vote.command('close')(close_vote)
