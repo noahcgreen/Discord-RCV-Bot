@@ -1,7 +1,7 @@
 # Discord-RCV-Bot
 Anonymous ranked choice voting Discord bot
 
-# To add to your server:
+# To add to your Discord server:
 
 Go to
 ```
@@ -10,7 +10,7 @@ https://discord.com/api/oauth2/authorize?client_id=825418814774181938&permission
 
 That's it!
 
-# To run on your own server:
+# To host the bot on your own:
 
 1. Edit the token in `__main__.py` with your application bot token from the Discord Developer Portal.
 2. Run `python3 __main__.py`.
