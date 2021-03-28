@@ -10,7 +10,7 @@ https://discord.com/api/oauth2/authorize?client_id=825418814774181938&permission
 
 That's it!
 
-# To run:
+# To run on your own server:
 
 1. Edit the token in `__main__.py` with your application bot token from the Discord Developer Portal.
 2. Run `python3 __main__.py`.
